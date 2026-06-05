@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import qrSample from '../assets/qr-sample.svg';
 import { CircleCheckBig, KeyRound, MapPin, PackageSearch, QrCode, Search, ShieldCheck, Smartphone, Ticket } from 'lucide-react';
 import { mockClients, mockOperations } from '../data';
 import type { Client, Operation } from '../types';
@@ -70,27 +71,16 @@ function buildQrPattern(value: string) {
   });
 }
 
-function TrackingQr({ value }: { value: string }) {
-  const pattern = buildQrPattern(value);
-  const finderCells = new Set([
-    0, 1, 2, 13, 14, 15, 26, 27, 28,
-    3, 4, 16, 17, 29, 30,
-    5, 6, 18, 19, 31, 32,
-    7, 8, 20, 21, 33, 34,
-    9, 10, 22, 23, 35, 36,
-    11, 12, 24, 25, 37, 38,
-    130, 131, 132, 143, 144, 145, 156, 157, 158,
-    133, 134, 146, 147, 159, 160,
-    135, 136, 148, 149, 161, 162,
-    137, 138, 150, 151, 163, 164,
-    139, 140, 152, 153, 165, 166,
-    141, 142, 154, 155, 167, 168,
-  ]);
-
-  const QR_IMG = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/QR_code_for_mobile_English_Wikipedia.svg/240px-QR_code_for_mobile_English_Wikipedia.svg.png';
+function TrackingQr({ value, size = 120 }: { value: string; size?: number }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <img src={QR_IMG} alt="QR de seguimiento" width={120} height={120} style={{ display: 'block', imageRendering: 'pixelated', border: '1px solid var(--ink-10)', padding: 6, background: 'var(--white)' }} />
+      <img
+        src={qrSample}
+        alt="QR de seguimiento"
+        width={size}
+        height={size}
+        style={{ display: 'block', border: '1px solid var(--ink-10)', padding: 6, background: 'var(--white)' }}
+      />
       <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-40)' }}>
         {value.slice(0, 16)}…
       </div>
@@ -115,7 +105,18 @@ function getMarketplaceOrderLabel(operation: Operation) {
   return `Overshark / ${orderNumber}`;
 }
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 900);
+  useEffect(() => {
+    const h = () => setMobile(window.innerWidth < 900);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return mobile;
+}
+
 export default function CustomerPortal() {
+  const isMobile = useIsMobile();
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [voucherGenerated, setVoucherGenerated] = useState(false);
@@ -145,7 +146,7 @@ export default function CustomerPortal() {
   const paperCard: React.CSSProperties = { background: 'var(--paper)', border: '1px solid var(--ink-10)' };
 
   return (
-    <div style={{ minHeight: '100%', padding: '36px 40px', background: 'var(--ink-05)', display: 'flex', flexDirection: 'column', gap: 28, maxWidth: 1200 }}>
+    <div style={{ minHeight: '100%', padding: isMobile ? '20px 16px' : '36px 40px', background: 'var(--ink-05)', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 28, maxWidth: 1200 }}>
 
       {/* ── Header ── */}
       <div style={{ borderBottom: '1px solid var(--ink-10)', paddingBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
@@ -175,7 +176,7 @@ export default function CustomerPortal() {
           </button>
         </form>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 10 }}>
           {[['Canal', 'Web cliente'], ['Respuesta', 'Tiempo real'], ['Soporte', 'WhatsApp / Mail']].map(([k, v]) => (
             <div key={k} style={{ background: 'var(--ink-05)', border: '1px solid var(--ink-10)', padding: '12px 14px' }}>
               <div style={{ ...label10, marginBottom: 4 }}>{k}</div>
@@ -243,7 +244,7 @@ export default function CustomerPortal() {
             </div>
 
             {/* KPI row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12 }}>
               {[
                 { k: 'Estado actual', v: latestOperation ? getOperationStage(latestOperation) : 'Sin datos' },
                 { k: 'Guías registradas', v: String(result.operations.length) },
@@ -259,7 +260,7 @@ export default function CustomerPortal() {
             {/* Modalidad */}
             <div style={{ ...paperCard, padding: '20px 24px' }}>
               <p style={{ ...label10, marginBottom: 14 }}>Modalidad del cliente</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                 {([['paid', 'Envío ya pagado', 'Muestra la clave directa de seguimiento al generar el voucher.'],
                    ['cash-on-delivery', 'Contra entrega', 'Reemplaza la clave por QR de pago Yape/Plin y número de transferencia.']] as const).map(([val, title, desc]) => (
                   <button
@@ -284,7 +285,7 @@ export default function CustomerPortal() {
             </div>
 
             {/* Voucher + lateral panel */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(260px, 320px)', gap: 16, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr minmax(260px, 320px)', gap: 16, alignItems: 'start' }}>
 
               {/* Voucher panel */}
               <div style={{ ...card, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -391,7 +392,7 @@ export default function CustomerPortal() {
             </div>
 
             {/* History + route */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
 
               {/* Historial */}
               <div style={{ ...card, overflow: 'hidden' }}>
